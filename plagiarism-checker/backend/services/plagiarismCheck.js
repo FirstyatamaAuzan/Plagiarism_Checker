@@ -247,6 +247,7 @@ class PlagiarismCheck {
 			return content;
 		} catch (error) {
 			console.error(`Error fetching ${url}:`, error.message);
+			if (this.browser) this.browser.close();
 			return null;
 		} finally {
 			if (page) await page.close();
