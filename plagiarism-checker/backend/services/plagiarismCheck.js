@@ -188,8 +188,7 @@ class PlagiarismCheck {
 		}
 
 		// init browser
-		let browser = null
-		browser = await puppeteer.launch({
+		let browser = await puppeteer.launch({
 			headless: true,
 			args: [
 				"--no-sandbox",
@@ -214,7 +213,6 @@ class PlagiarismCheck {
 
 		let page;
 		try {
-			if (browser) await this.initializeBrowser();
 			page = await browser.newPage();
 
 			// Teknik anti-deteksi 1: Random mouse movement
