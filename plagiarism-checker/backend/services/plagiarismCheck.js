@@ -247,11 +247,18 @@ class PlagiarismCheck {
 			return content;
 		} catch (error) {
 			console.error(`Error fetching ${url}:`, error.message);
-			if (this.browser) this.browser.close();
+			if (this.browser) {
+				this.browser.close();
+				this.browser = null;
+			}
+
 			return null;
 		} finally {
 			if (page) await page.close();
-			if (this.browser) this.browser.close();
+			if (this.browser) {
+				this.browser.close();
+				this.browser = null;
+			}
 		}
 	}
 
