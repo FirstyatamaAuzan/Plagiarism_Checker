@@ -41,7 +41,7 @@ exports.checkUrl = async (req, res) => {
     
     if (!/^https?:\/\//i.test(url)) url = "http://" + url;
     
-    const content = await plagiarismCheckService.fetchPageContent(url);
+    const content = await plagiarismCheckService.fetchPageContent(url, null);
     if (!content) return res.status(500).json({ error: "Gagal mengambil konten dari URL" });
     
     const result = await plagiarismCheckService.checkPlagiarismPerURL(content);

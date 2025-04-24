@@ -173,7 +173,7 @@ class PlagiarismCheck {
 	}
 
 	// ================== 6. Pengambilan Konten Web ==================
-	async fetchPageContent(url) {
+	async fetchPageContent(url, globalBrowser = null) {
 		if (url.toLowerCase().endsWith(".pdf")) {
 			try {
 				const response = await axios.get(url, {
@@ -188,28 +188,33 @@ class PlagiarismCheck {
 		}
 
 		// init browser
-		let browser = await puppeteer.launch({
-			headless: true,
-			args: [
-				"--no-sandbox",
-				"--disable-setuid-sandbox",
-				"--disable-dev-shm-usage",
-				"--disable-web-security",
-				"--lang=id-ID",
-			],
-		});
+		let browser = null;
+		if (!globalBrowser) {
+			browser = await puppeteer.launch({
+				headless: true,
+				args: [
+					"--no-sandbox",
+					"--disable-setuid-sandbox",
+					"--disable-dev-shm-usage",
+					"--disable-web-security",
+					"--lang=id-ID",
+				],
+			});
 
-		// Setup browser fingerprint
-		const pageInit = await browser.newPage();
-		await pageInit.setExtraHTTPHeaders({
-			"Accept-Language": "id-ID,id;q=0.9",
-		});
-		await pageInit.setUserAgent(this.userAgent);
-		await pageInit.setViewport({
-			width: 1366 + Math.floor(Math.random() * 100),
-			height: 768 + Math.floor(Math.random() * 100),
-		});
-		await pageInit.close();
+			// Setup browser fingerprint
+			const pageInit = await browser.newPage();
+			await pageInit.setExtraHTTPHeaders({
+				"Accept-Language": "id-ID,id;q=0.9",
+			});
+			await pageInit.setUserAgent(this.userAgent);
+			await pageInit.setViewport({
+				width: 1366 + Math.floor(Math.random() * 100),
+				height: 768 + Math.floor(Math.random() * 100),
+			});
+			await pageInit.close();
+		} else {
+			browser = globalBrowser;
+		}
 
 		let page;
 		try {
@@ -236,7 +241,7 @@ class PlagiarismCheck {
 			return content;
 		} catch (error) {
 			console.error(`Error fetching ${url}:`, error.message);
-			if (browser) {
+			if (!globalBrowser && browser) {
 				browser.close();
 				browser = null;
 			}
@@ -244,7 +249,7 @@ class PlagiarismCheck {
 			return null;
 		} finally {
 			if (page) await page.close();
-			if (browser) {
+			if (!globalBrowser && browser) {
 				browser.close();
 				browser = null;
 			}
@@ -332,6 +337,7 @@ class PlagiarismCheck {
 			};
 		}
 
+		let browser = null;
 		try {
 			const apiResponse = await axios.post(process.env.API_URL, {
 				secretCode: process.env.SECRET_CODE,
@@ -359,67 +365,106 @@ class PlagiarismCheck {
 			const inputSentences = this.splitIntoSentences(originalText);
 			const inputVectors = inputSentences.map((sentence) => this.getTokensAndNGrams(sentence));
 
-			const resultsPerURL = await Promise.all(
-				urls.map(async (url) => {
-					const content = await this.fetchPageContent(url);
-					if (!content) return null;
+			if (urls.length > 0) {
+				browser = await puppeteer.launch({
+					headless: true,
+					args: [
+						"--no-sandbox",
+						"--disable-setuid-sandbox",
+						"--disable-dev-shm-usage",
+						"--disable-web-security",
+						"--lang=id-ID",
+					],
+				});
 
-					const targetSentences = this.splitIntoSentences(content);
-					const targetVectors = targetSentences.map((sentence) => this.getTokensAndNGrams(sentence));
+				// Setup browser fingerprint
+				const pageInit = await browser.newPage();
+				await pageInit.setExtraHTTPHeaders({
+					"Accept-Language": "id-ID,id;q=0.9",
+				});
+				await pageInit.setUserAgent(this.userAgent);
+				await pageInit.setViewport({
+					width: 1366 + Math.floor(Math.random() * 100),
+					height: 768 + Math.floor(Math.random() * 100),
+				});
+				await pageInit.close();
 
-					const maxSims = inputVectors.map((inputTokens) => {
-						let maxSim = 0;
-						targetVectors.forEach((targetTokens) => {
-							const [tfInput, tfTarget] = this.computeTFIDFForPair(inputTokens, targetTokens);
-							const sim = this.cosineSimilarityTF(tfInput, tfTarget);
-							if (sim > maxSim) maxSim = sim;
+				const resultsPerURL = await Promise.all(
+					urls.map(async (url) => {
+						const content = await this.fetchPageContent(url, browser);
+						if (!content) return null;
+
+						const targetSentences = this.splitIntoSentences(content);
+						const targetVectors = targetSentences.map((sentence) => this.getTokensAndNGrams(sentence));
+
+						const maxSims = inputVectors.map((inputTokens) => {
+							let maxSim = 0;
+							targetVectors.forEach((targetTokens) => {
+								const [tfInput, tfTarget] = this.computeTFIDFForPair(inputTokens, targetTokens);
+								const sim = this.cosineSimilarityTF(tfInput, tfTarget);
+								if (sim > maxSim) maxSim = sim;
+							});
+							return maxSim;
 						});
-						return maxSim;
-					});
 
-					const plagiarizedCount = maxSims.filter(
-						(sim) => sim >= this.determineThreshold(maxSims)
-					).length;
-					const sumSimilarity = maxSims.reduce((sum, sim) => sum + sim, 0);
-					const avgSimilarity = maxSims.length > 0 ? sumSimilarity / maxSims.length : 0;
-					const plagiarizedFraction =
-						inputSentences.length > 0 ? plagiarizedCount / inputSentences.length : 0;
-					const compositeScore = Math.min(
-						Math.round(((plagiarizedFraction + avgSimilarity) / 2) * 100),
-						100
-					);
+						const plagiarizedCount = maxSims.filter(
+							(sim) => sim >= this.determineThreshold(maxSims)
+						).length;
+						const sumSimilarity = maxSims.reduce((sum, sim) => sum + sim, 0);
+						const avgSimilarity = maxSims.length > 0 ? sumSimilarity / maxSims.length : 0;
+						const plagiarizedFraction =
+							inputSentences.length > 0 ? plagiarizedCount / inputSentences.length : 0;
+						const compositeScore = Math.min(
+							Math.round(((plagiarizedFraction + avgSimilarity) / 2) * 100),
+							100
+						);
 
-					return {
-						url,
-						plagiarismScore: compositeScore,
-						details: {
-							totalInputSentences: inputSentences.length,
-							plagiarizedCount,
-							avgSimilarity: avgSimilarity.toFixed(2),
-							plagiarizedFraction: (plagiarizedFraction * 100).toFixed(2) + "%",
-						},
-					};
-				})
-			);
+						return {
+							url,
+							plagiarismScore: compositeScore,
+							details: {
+								totalInputSentences: inputSentences.length,
+								plagiarizedCount,
+								avgSimilarity: avgSimilarity.toFixed(2),
+								plagiarizedFraction: (plagiarizedFraction * 100).toFixed(2) + "%",
+							},
+						};
+					})
+				);
 
-			const validResults = resultsPerURL.filter((result) => result !== null);
-			// sorting output
-			validResults.sort((a, b) => b.plagiarismScore - a.plagiarismScore);
+				const validResults = resultsPerURL.filter((result) => result !== null);
+				// sorting output
+				validResults.sort((a, b) => b.plagiarismScore - a.plagiarismScore);
+
+				return {
+					results: validResults,
+					originalText: originalText,
+					topKeywords,
+					error: null,
+				};
+			}
 
 			return {
-				results: validResults,
+				results: [],
+				error: "Tidak ada url yang ditemukan",
 				originalText: originalText,
 				topKeywords,
-				error: null,
 			};
 		} catch (error) {
 			console.log(error);
+
+			if (browser) browser.close();
+			browser = null;
+
 			return {
 				results: [],
 				error: error.message,
 				originalText: originalText,
 				topKeywords,
 			};
+		} finally {
+			if (browser) browser.close();
+			browser = null;
 		}
 	}
 }
