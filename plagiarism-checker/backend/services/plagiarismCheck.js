@@ -69,40 +69,10 @@ class PlagiarismCheck {
 			"ini",
 			"itu",
 		]);
-		this.browser = null;
 		this.userAgent = randomUseragent.getRandom();
 		this.maxConcurrentPages = 5;
 		this.activePages = 0;
 		// this.lastRequest = 0;
-	}
-
-	async initializeBrowser() {
-		try {
-			this.browser = await puppeteer.launch({
-				headless: true,
-				args: [
-					"--no-sandbox",
-					"--disable-setuid-sandbox",
-					"--disable-dev-shm-usage",
-					"--disable-web-security",
-					"--lang=id-ID",
-				],
-			});
-
-			// Setup browser fingerprint
-			const page = await this.browser.newPage();
-			await page.setExtraHTTPHeaders({
-				"Accept-Language": "id-ID,id;q=0.9",
-			});
-			await page.setUserAgent(this.userAgent);
-			await page.setViewport({
-				width: 1366 + Math.floor(Math.random() * 100),
-				height: 768 + Math.floor(Math.random() * 100),
-			});
-			await page.close();
-		} catch (error) {
-			console.error("Gagal inisialisasi browser:", error);
-		}
 	}
 
 	// ================== 1. Preprocessing Teks ==================
@@ -204,10 +174,6 @@ class PlagiarismCheck {
 
 	// ================== 6. Pengambilan Konten Web ==================
 	async fetchPageContent(url) {
-		// const now = Date.now();
-		// const delay = Math.max(0, RATE_LIMIT - (now - lastRequest));
-		// await new Promise(resolve => setTimeout(resolve, delay));
-		// lastRequest = Date.now();
 		if (url.toLowerCase().endsWith(".pdf")) {
 			try {
 				const response = await axios.get(url, {
@@ -221,10 +187,35 @@ class PlagiarismCheck {
 			}
 		}
 
+		// init browser
+		let browser = null
+		browser = await puppeteer.launch({
+			headless: true,
+			args: [
+				"--no-sandbox",
+				"--disable-setuid-sandbox",
+				"--disable-dev-shm-usage",
+				"--disable-web-security",
+				"--lang=id-ID",
+			],
+		});
+
+		// Setup browser fingerprint
+		const pageInit = await browser.newPage();
+		await pageInit.setExtraHTTPHeaders({
+			"Accept-Language": "id-ID,id;q=0.9",
+		});
+		await pageInit.setUserAgent(this.userAgent);
+		await pageInit.setViewport({
+			width: 1366 + Math.floor(Math.random() * 100),
+			height: 768 + Math.floor(Math.random() * 100),
+		});
+		await pageInit.close();
+
 		let page;
 		try {
-			if (!this.browser) await this.initializeBrowser();
-			page = await this.browser.newPage();
+			if (browser) await this.initializeBrowser();
+			page = await browser.newPage();
 
 			// Teknik anti-deteksi 1: Random mouse movement
 			await page.setUserAgent(randomUseragent.getRandom());
@@ -247,17 +238,17 @@ class PlagiarismCheck {
 			return content;
 		} catch (error) {
 			console.error(`Error fetching ${url}:`, error.message);
-			if (this.browser) {
-				this.browser.close();
-				this.browser = null;
+			if (browser) {
+				browser.close();
+				browser = null;
 			}
 
 			return null;
 		} finally {
 			if (page) await page.close();
-			if (this.browser) {
-				this.browser.close();
-				this.browser = null;
+			if (browser) {
+				browser.close();
+				browser = null;
 			}
 		}
 	}
