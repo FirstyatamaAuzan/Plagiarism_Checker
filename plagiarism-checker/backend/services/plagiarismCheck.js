@@ -8,16 +8,15 @@ const AdblockerPlugin = require("puppeteer-extra-plugin-adblocker");
 const { Readability } = require("@mozilla/readability");
 const { JSDOM } = require("jsdom");
 const randomUseragent = require("random-useragent");
-const RATE_LIMIT = 1000; 
+const RATE_LIMIT = 1000;
 const tokenCache = new Map();
 
-
 puppeteer.use(StealthPlugin());
-puppeteer.use(AdblockerPlugin({ blockTrackers: true }))
+puppeteer.use(AdblockerPlugin({ blockTrackers: true }));
 
 const stemmer = new Stemmer();
 
-class plagiarismCheck{
+class PlagiarismCheck {
 	constructor() {
 		this.stopwords = new Set([
 			"dan",
@@ -72,44 +71,42 @@ class plagiarismCheck{
 		]);
 		this.browser = null;
 		this.userAgent = randomUseragent.getRandom();
-		this.maxConcurrentPages = 5; 
+		this.maxConcurrentPages = 5;
 		this.activePages = 0;
 		// this.lastRequest = 0;
-    	this.initializeBrowser();
 	}
 
 	async initializeBrowser() {
 		try {
-		  this.browser = await puppeteer.launch({
-			headless: "new",
-			args: [
-				'--no-sandbox',
-				'--disable-setuid-sandbox',
-				'--disable-dev-shm-usage',
-				'--disable-web-security',
-				'--lang=id-ID' 
-			  ]
-		  });
+			this.browser = await puppeteer.launch({
+				headless: "new",
+				args: [
+					"--no-sandbox",
+					"--disable-setuid-sandbox",
+					"--disable-dev-shm-usage",
+					"--disable-web-security",
+					"--lang=id-ID",
+				],
+			});
 
-		  // Setup browser fingerprint
-		  const page = await this.browser.newPage();
-		  await page.setExtraHTTPHeaders({
-			'Accept-Language': 'id-ID,id;q=0.9'
-		  });
-		  await page.setUserAgent(this.userAgent);
-		  await page.setViewport({
-			width: 1366 + Math.floor(Math.random() * 100),
-			height: 768 + Math.floor(Math.random() * 100),
-		  });
-		  await page.close();
-
+			// Setup browser fingerprint
+			const page = await this.browser.newPage();
+			await page.setExtraHTTPHeaders({
+				"Accept-Language": "id-ID,id;q=0.9",
+			});
+			await page.setUserAgent(this.userAgent);
+			await page.setViewport({
+				width: 1366 + Math.floor(Math.random() * 100),
+				height: 768 + Math.floor(Math.random() * 100),
+			});
+			await page.close();
 		} catch (error) {
-		  console.error("Gagal inisialisasi browser:", error);
+			console.error("Gagal inisialisasi browser:", error);
 		}
-	  }
+	}
 
 	// ================== 1. Preprocessing Teks ==================
-	tokenizeText(text){ 
+	tokenizeText(text) {
 		if (tokenCache.has(text)) return tokenCache.get(text);
 
 		const tokens = (text || "")
@@ -118,8 +115,8 @@ class plagiarismCheck{
 			.split(/\s+/)
 			.filter((token) => token && !this.stopwords.has(token));
 
-			tokenCache.set(text, tokens);
-			return tokens;	
+		tokenCache.set(text, tokens);
+		return tokens;
 		// // Ganti Porter Stemmer dengan Sastrawi
 		// return tokens.map((token) => stemmer.stem(token)); // MODIFIKASI BARIS INI
 	}
@@ -211,19 +208,19 @@ class plagiarismCheck{
 		// const delay = Math.max(0, RATE_LIMIT - (now - lastRequest));
 		// await new Promise(resolve => setTimeout(resolve, delay));
 		// lastRequest = Date.now();
-		if (url.toLowerCase().endsWith('.pdf')) {
-		  try {
-			const response = await axios.get(url, { 
-			  responseType: 'arraybuffer', 
-			  timeout: 60000 
-			});
-			const pdfData = await pdfParse(response.data);
-			return pdfData.text?.length > 10 ? pdfData.text : null;
-		  } catch (error) {
-			return null;
-		  }
+		if (url.toLowerCase().endsWith(".pdf")) {
+			try {
+				const response = await axios.get(url, {
+					responseType: "arraybuffer",
+					timeout: 60000,
+				});
+				const pdfData = await pdfParse(response.data);
+				return pdfData.text?.length > 10 ? pdfData.text : null;
+			} catch (error) {
+				return null;
+			}
 		}
-	
+
 		let page;
 		try {
 			if (!this.browser) await this.initializeBrowser();
@@ -232,17 +229,17 @@ class plagiarismCheck{
 			// Teknik anti-deteksi 1: Random mouse movement
 			await page.setUserAgent(randomUseragent.getRandom());
 			await page.evaluateOnNewDocument(() => {
-				Object.defineProperty(navigator, 'webdriver', { get: () => false });
+				Object.defineProperty(navigator, "webdriver", { get: () => false });
 			});
 
 			// Teknik anti-deteksi 2: Random delay
-			await new Promise(resolve => setTimeout(resolve, Math.random() * 5000 + 2000));
+			await new Promise((resolve) => setTimeout(resolve, Math.random() * 5000 + 2000));
 
 			// Navigasi dengan referer lokal
 			await page.goto(url, {
 				waitUntil: "domcontentloaded",
 				timeout: 60000,
-				referer: "https://www.google.com/"
+				referer: "https://www.google.com/",
 			});
 
 			// Teknik khusus website Indonesia
@@ -253,61 +250,57 @@ class plagiarismCheck{
 			return null;
 		} finally {
 			if (page) await page.close();
+			if (this.browser) this.browser.close();
 		}
 	}
 
 	async handleIndonesianWebsite(page, url) {
 		// Teknik 1: Handle popup/overlay umum di Indonesia
-		const closeButtons = [
-		  'button[aria-label="tutup"]',
-		  '.modal-close',
-		  '.btn-close',
-		  '.popup-close'
-		];
-		
+		const closeButtons = ['button[aria-label="tutup"]', ".modal-close", ".btn-close", ".popup-close"];
+
 		for (const selector of closeButtons) {
-		  try {
-			await page.click(selector);
-			await page.waitForTimeout(1000);
-		  } catch (error) {}
+			try {
+				await page.click(selector);
+				await page.waitForTimeout(1000);
+			} catch (error) {}
 		}
-	
+
 		// Teknik 2: Scroll dengan pola pembaca Indonesia
 		await page.evaluate(async () => {
-		  await new Promise(resolve => {
-			let pos = 0;
-			const interval = setInterval(() => {
-			  window.scrollBy(0, 100);
-			  pos += 100;
-			  if (pos > 2000) {
-				clearInterval(interval);
-				resolve();
-			  }
-			}, 500 + Math.random() * 500);
-		  });
+			await new Promise((resolve) => {
+				let pos = 0;
+				const interval = setInterval(() => {
+					window.scrollBy(0, 100);
+					pos += 100;
+					if (pos > 2000) {
+						clearInterval(interval);
+						resolve();
+					}
+				}, 500 + Math.random() * 500);
+			});
 		});
-	
+
 		// Teknik 3: Ekstrak konten spesifik website Indonesia
 		const domain = new URL(url).hostname;
 		let content = "";
-		
+
 		// Handle website khusus
-		if (domain.includes('detik.com')) {
-		  content = await page.$eval('.detail__body', el => el.innerText);
-		} else if (domain.includes('kompas.com')) {
-		  content = await page.$eval('.read__content', el => el.innerText);
-		} else if (domain.includes('tribunnews.com')) {
-		  await page.waitForSelector('.side-article.txt-article');
-		  content = await page.$eval('.side-article.txt-article', el => el.innerText);
+		if (domain.includes("detik.com")) {
+			content = await page.$eval(".detail__body", (el) => el.innerText);
+		} else if (domain.includes("kompas.com")) {
+			content = await page.$eval(".read__content", (el) => el.innerText);
+		} else if (domain.includes("tribunnews.com")) {
+			await page.waitForSelector(".side-article.txt-article");
+			content = await page.$eval(".side-article.txt-article", (el) => el.innerText);
 		} else {
-		  // Fallback ke Readability.js
-		  const html = await page.content();
-		  const dom = new JSDOM(html, { url });
-		  const reader = new Readability(dom.window.document);
-		  const article = reader.parse();
-		  content = article?.textContent || "";
+			// Fallback ke Readability.js
+			const html = await page.content();
+			const dom = new JSDOM(html, { url });
+			const reader = new Readability(dom.window.document);
+			const article = reader.parse();
+			content = article?.textContent || "";
 		}
-	
+
 		return content.replace(/\s+/g, " ").trim();
 	}
 
@@ -322,7 +315,6 @@ class plagiarismCheck{
 			.filter((s) => s.trim().length > 0);
 	}
 
-	
 	async checkPlagiarismPerURL(queryText) {
 		const originalText = queryText || "";
 		const processedTokens = this.tokenizeText(originalText); // Sudah include stemming
@@ -388,7 +380,9 @@ class plagiarismCheck{
 						return maxSim;
 					});
 
-					const plagiarizedCount = maxSims.filter((sim) => sim >= this.determineThreshold(maxSims)).length;
+					const plagiarizedCount = maxSims.filter(
+						(sim) => sim >= this.determineThreshold(maxSims)
+					).length;
 					const sumSimilarity = maxSims.reduce((sum, sim) => sum + sim, 0);
 					const avgSimilarity = maxSims.length > 0 ? sumSimilarity / maxSims.length : 0;
 					const plagiarizedFraction =
@@ -431,12 +425,5 @@ class plagiarismCheck{
 		}
 	}
 }
-process.on('SIGINT', async () => {
-	const instance = new PlagiarismCheck();
-	if (instance.browser) {
-	  await instance.browser.close();
-	}
-	process.exit(0);
-  });
-	
-module.exports = new plagiarismCheck();
+
+module.exports = new PlagiarismCheck();
