@@ -424,6 +424,7 @@ class PlagiarismCheck {
 				error: null,
 			};
 		} catch (error) {
+			console.log(error);
 			return {
 				results: [],
 				error: error.message,

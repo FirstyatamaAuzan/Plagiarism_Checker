@@ -5,9 +5,9 @@ exports.checkText = async (req, res) => {
   try {
     const text = req.body?.text?.trim();
     const result = await plagiarismCheckService.checkPlagiarismPerURL(text);
-    res.json(result);
+    return res.json(result);
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       error: error.message || "Terjadi kesalahan saat memproses teks"
     });
   }
@@ -26,9 +26,9 @@ exports.checkFile = async (req, res) => {
     }
 
     const result = await plagiarismCheckService.checkPlagiarismPerURL(fileContent);
-    res.json(result);
+    return res.json(result);
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       error: error.message || "Terjadi kesalahan saat memproses file"
     });
   }
@@ -45,9 +45,9 @@ exports.checkUrl = async (req, res) => {
     if (!content) return res.status(500).json({ error: "Gagal mengambil konten dari URL" });
     
     const result = await plagiarismCheckService.checkPlagiarismPerURL(content);
-    res.json(result);
+    return res.json(result);
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       error: error.message || "Terjadi kesalahan saat memproses URL"
     });
   }
