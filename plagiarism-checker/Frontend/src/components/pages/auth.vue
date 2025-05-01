@@ -95,6 +95,7 @@ export default {
 
     async loginWithGoogle() {
       try {
+        
         const result = await signInWithPopup(auth, googleProvider);
         const user = result.user;
 

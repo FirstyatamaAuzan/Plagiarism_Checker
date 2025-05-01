@@ -1,3 +1,4 @@
+
 <template>
   <header class="header">
     <nav class="navbar navbar-expand-lg bg-body-tertiary">
@@ -19,7 +20,7 @@
 
         <div class="user d-flex align-items-center ms-auto">
           <div
-            v-if="isAuthenticated || displayUser"
+            v-if="isAuthenticated"
             class="user-profile d-flex align-items-center"
             :class="{ active: showDropdown }"
             @click="toggleDropdown"
@@ -39,7 +40,7 @@
               </div>
             </template>
 
-            <span class="me-2">{{
+            <span class="me-2" style="font-weight: 600; font-size: 17px;">{{
               displayUser.username || displayUser.name || "User"
             }}</span>
 
@@ -104,36 +105,37 @@
 </template>
 
 <script>
+import { useAuthStore } from "../store/authStore";
+
 export default {
   name: "Header",
   props: {
     isNavbarOpen: Boolean,
-    isAuthenticated: Boolean,
-    user: Object,
   },
 
   data() {
     return {
       showDropdown: false,
-      localUser: null,
     };
   },
 
   computed: {
+    authStore() {
+      return useAuthStore();
+    },
+    isAuthenticated() {
+      return !!this.authStore.user;
+    },
     displayUser() {
-      return this.user || this.localUser;
+      return this.authStore.user || {};
     },
     fallbackInitial() {
-      const name = this.displayUser?.username || this.displayUser?.name || "U";
+      const name = this.displayUser?.username || 
+                  this.displayUser?.name || 
+                  this.displayUser?.email?.split('@')[0] || 
+                  "U";
       return name.charAt(0).toUpperCase();
     },
-  },
-
-  mounted() {
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      this.localUser = JSON.parse(storedUser);
-    }
   },
 
   methods: {
@@ -141,6 +143,8 @@ export default {
       this.showDropdown = !this.showDropdown;
     },
     logout() {
+      this.authStore.logout();
+      this.showDropdown = false;
       this.$emit("logout");
     },
   },

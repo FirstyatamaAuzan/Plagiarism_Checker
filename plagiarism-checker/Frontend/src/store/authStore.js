@@ -3,11 +3,16 @@ import axios from "../components/lib/axios";
 
 export const useAuthStore = defineStore("auth", {
   state: () => ({
-    user: JSON.parse(localStorage.getItem("user")) || null, // Ambil dari localStorage juga
+    user: JSON.parse(localStorage.getItem("user")) || null,
     token: localStorage.getItem("token") || "",
   }),
+  
 
   actions: {
+    setUser(user) {
+      this.user = user; 
+    },
+
     async login(email, password) {
       try {
         const { data } = await axios.post("/auth/login", { email, password });
@@ -45,7 +50,11 @@ export const useAuthStore = defineStore("auth", {
       const user = await signInWithGoogle();
       if (user) {
         this.user = { name: user.displayName, email: user.email };
-        localStorage.setItem("user", JSON.stringify(this.user)); // Tambahkan ini juga
+        this.token = token;
+      
+        // Simpan ke localStorage
+        localStorage.setItem("token", token);
+        localStorage.setItem("user", JSON.stringify(this.user)); 
       }
     },
 

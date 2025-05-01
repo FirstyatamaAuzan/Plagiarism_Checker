@@ -87,7 +87,6 @@ class PlagiarismCheck {
 
 		tokenCache.set(text, tokens);
 		return tokens;
-		// // Ganti Porter Stemmer dengan Sastrawi
 		// return tokens.map((token) => stemmer.stem(token)); // MODIFIKASI BARIS INI
 	}
 
