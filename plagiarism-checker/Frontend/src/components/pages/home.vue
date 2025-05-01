@@ -166,8 +166,8 @@
                         :href="source.url"
                         target="_blank"
                         class="source-url flex-grow-1"
-                        >{{ source.url }}</a
-                      >
+                        >{{ source.url.length > 70 ? source.url.substring(0,70) + '\n' + source.url.substring(70) : source.url }}
+                        </a>
                       <span
                         class="source-percentage badge"
                         :class="{
