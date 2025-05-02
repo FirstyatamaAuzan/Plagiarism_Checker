@@ -146,6 +146,7 @@ export default {
           message: "Login dengan Google gagal.",
           type: "error",
         });
+        console.log(error);
       }
     },
   },
